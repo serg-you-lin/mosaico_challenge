@@ -132,6 +132,71 @@ during walking, and it is also left open.
     free-fall window in the whole run, so all of those were done without
     a lift. The data shows the lift is not tied to a turn; its purpose
     stays unknown.
+- **Can it fall again?** Ask a forecasting model whether the IMU signal
+  points to another fall: Mistral's Timestral (time-series foundation
+  model, 209M, run locally on CPU) on `/imu/body` acceleration z, 8 s of
+  context, 0.5 s horizon, one cut every 0.25 s (`timestral_check.py`).
+  - *Fact check — no second fall in the data; the model would not have
+    seen the first one coming either.* (1) Outside 42.00–42.14 s, acc_z
+    never goes below 1 m/s²; below 3 m/s² there are only three single
+    samples (4 ms each) at 43.89, 57.52 and 66.67 s, against 35
+    consecutive samples for the real fall. (2) Backtest: at the two cuts
+    whose horizon contains the fall (41.67 and 41.92 s) the forecast's
+    1 % quantile stays above 5 m/s², while the real minimum is −0.74.
+    In none of the 316 cuts does the 5 % quantile go below 1 m/s². (3)
+    The lower tail widens only *after* the fall, when the fall is inside
+    the context (1 % quantile down to −6.1 m/s² at 42.42 s). The model
+    learns "falls happen" from the event; it does not predict it. (4)
+    Past the end of the run (4 s) the 1 % quantile stays above 5.2 m/s²:
+    no fall forecast. This fits the earlier checks: the fall is caused
+    by an external push, which the IMU history alone does not contain.
+    Whether it can happen again depends on that cause, which stays unknown.
+- **So the fall was put in artificially.** The forecasting test makes me
+  think the fall was inserted into the world on purpose, by removing
+  gravity, or that it comes from an accelerometer error.
+  - *Fact check — the two mechanisms are refuted, the "artificial" part
+    is supported.* (1) *Gravity removed:* no. During the flight the body
+    height follows a parabola with g = 9.79 m/s²: gravity is there. What
+    defies physics is the phase *before*: the body rises at more than 1 g
+    while the feet are almost unloaded. (2) *Accelerometer error only:*
+    no. The load cells (all four feet within ±5 N) and the odometry (the
+    parabola) show the same event as the IMU. (3) *Artificial:* yes,
+    several signs that the event was written into the data rather than
+    lived by a robot (`fall_checks.py`, `artifact_report`):
+    - acc z jumps from 11.08 to −0.74 m/s² in **one sample** (41.996 →
+      42.000 s), and the window starts at exactly **42.000 s** (42, the
+      Hitchhiker's Guide answer, like the "towel?" in the log, "don't panic" and
+      firmware `4.2.0-hhgttg`; the metadata says "nothing happened at
+      42s. probably.");
+    - in flight the IMU noise is std 0.10 m/s², 13× lower than the
+      high-frequency noise over the run (1.37);
+    - the parabola on odom z fits with an RMS residual of 6e-7 m, against
+      2–5e-4 m on 0.124 s walking stretches. Weak sign: odometry is 25 Hz,
+      so only 4 points;
+    - the legs keep walking through the flight as if nothing happened:
+      the joints repeat the previous gait cycle (period 1.128 s) with a
+      mean difference of 0.027 rad, no larger than in normal walking
+      (0.037–0.044). No reaction to losing ground contact.
+  - *What else it could be (lateral, not verified):* (a) the most likely:
+    the challenge authors scripted a ballistic hop into a synthetic log,
+    with all sensors generated consistently; (b) a physics-engine
+    "depenetration" pop: when a body intersects an object, the solver
+    pushes it out with a large force, which would lift the body with the
+    feet unloaded. The "unidentified object (towel?)" logged 2.5 s
+    earlier, about 2 m ahead at 0.85 m/s, could be that object. Not
+    checkable: the log has no object pose; (c) the gantry of the log
+    lifting and releasing the robot (see above). The data cannot tell
+    these apart.
+
+## Closing note
+
+The whole recording is a Hitchhiker's Guide to the Galaxy reference: the
+fall at exactly 42 s, the "(class: towel?)" in the mission log, "DON'T PANIC", firmware `4.2.0-hhgttg`,
+"so long, and thanks for all the fish". The checks above (load cells,
+odometry, joints, camera, a forecasting model) were a way to put the data
+to the test with different tools, not an attempt to find a physical cause
+for a scripted event. The answer is 42; working out the question is left
+to a computer with 7.5 million years to spare.
 
 ## Proposed follow-up exercise
 
@@ -153,4 +218,5 @@ a given turn, and find when it does or does not compensate enough:
 ./run.sh                        # Codespace: start mosaicod, ingest, run the query
 python camera_to_mp4.py         # front camera -> MP4, read from Mosaico
 python fall_checks.py           # numbers above + media/*.png (reads the .mcap)
+python timestral_check.py       # "can it fall again?" with Timestral (torch, ~840 MB weights)
 ```

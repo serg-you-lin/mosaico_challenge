@@ -35,6 +35,7 @@ class Recording:
     odom:       np.ndarray                    # t, x, y, z, v_x, omega_z, roll, yaw
     feet:       dict[str, np.ndarray] = field(default_factory=dict)  # t, F_z
     status:     list[tuple[float, str]] = field(default_factory=list)
+    joints:     np.ndarray = field(default_factory=lambda: np.empty((0, 13)))  # t, 12 posizioni
 
 
 # ---------------------------------------------------------------------------
@@ -46,7 +47,7 @@ def load(mcap_path: Path = MCAP_PATH) -> Recording:
     with open(mcap_path, "rb") as f:
         reader = make_reader(f, decoder_factories=[DecoderFactory()])
         t0 = reader.get_summary().statistics.message_start_time
-        imu, odom, feet, status = [], [], {}, []
+        imu, odom, feet, status, joints = [], [], {}, [], []
         for _, ch, msg, m in reader.iter_decoded_messages():
             t = (msg.log_time - t0) / 1e9
             if ch.topic == "/imu/body":
@@ -58,8 +59,11 @@ def load(mcap_path: Path = MCAP_PATH) -> Recording:
                 feet.setdefault(ch.topic.rsplit("/", 1)[-1], []).append((t, m.wrench.force.z))
             elif ch.topic == "/robot/status":
                 status.append((t, m.data))
+            elif ch.topic == "/robot/joint_states":
+                joints.append((t, *m.position))
     return Recording(t0, np.array(imu), np.array(odom),
-                     {k: np.array(v) for k, v in sorted(feet.items())}, status)
+                     {k: np.array(v) for k, v in sorted(feet.items())}, status,
+                     np.array(joints))
 
 
 def fall_report(rec: Recording) -> None:
@@ -91,6 +95,36 @@ def fall_report(rec: Recording) -> None:
     print(f"Just before ({pre[0]}-{pre[1]} s): sum of foot loads <= {feet_max:.0f} N, "
           f"IMU acc z mean {acc:.1f} m/s^2, body rising")
     print(f"Camera at ~8 fps -> {(hi - lo) * 8.06:.1f} frames inside the window")
+
+
+def artifact_report(rec: Recording) -> None:
+    """Indizi che la caduta sia stata scritta nei dati più che vissuta dal robot."""
+    lo, hi = FALL_S
+    edge = _between(rec.imu, lo - 0.004, lo + 0.004)
+    print(f"IMU acc z at {lo - 0.004:.3f} s: {edge[0, 1]:.2f}, at {lo:.3f} s: {edge[1, 1]:.2f} m/s^2 "
+          f"(one-sample step)")
+    # Rumore in volo contro rumore ad alta frequenza su tutta la corsa
+    az = rec.imu[:, 1]
+    hp = az - np.convolve(az, np.ones(25) / 25, "same")
+    fly = _between(rec.imu, lo + 0.004, hi)[:, 1]
+    print(f"IMU acc z in flight: std {fly.std():.2f} vs high-pass std over the run {hp[100:-100].std():.2f} m/s^2")
+    # Residuo della parabola: in volo contro tratti di camminata della stessa durata
+    for start in (lo, 20.0, 60.0):
+        w = _between(rec.odom, start, start + (hi - lo) + 1e-3)
+        c = np.polyfit(w[:, 0] - start, w[:, 3], 2)
+        res = np.sqrt(np.mean((w[:, 3] - np.polyval(c, w[:, 0] - start)) ** 2))
+        print(f"  parabola on odom z {start:5.2f} s + {hi - lo:.3f} s ({len(w)} points): RMS residual {res:.1e} m")
+    # Le zampe continuano il passo come se niente fosse? Confronto q(t) con q(t - T)
+    j = rec.joints
+    dt = np.median(np.diff(j[:, 0]))
+    ref = _between(j, 30.0, 40.0)[:, 1] - _between(j, 30.0, 40.0)[:, 1].mean()
+    ac = np.correlate(ref, ref, "full")[len(ref) - 1:]
+    k0 = int(0.2 / dt)
+    k = int(np.argmax(ac[k0:int(1.5 / dt)])) + k0
+    print(f"Gait period ~{k * dt:.3f} s; mean |q(t) - q(t - T)| over the 12 joints:")
+    for a, b in ((38.0, 41.0), (lo, hi), (hi, 42.5), (45.0, 48.0)):
+        idx = np.where((j[:, 0] >= a) & (j[:, 0] < b))[0]
+        print(f"  {a:6.3f}-{b:6.3f} s: {np.abs(j[idx, 1:] - j[idx - k, 1:]).mean():.3f} rad")
 
 
 def lean_report(rec: Recording, min_omega: float = 0.05) -> None:
@@ -189,6 +223,8 @@ def main() -> None:
         print(f"[{t:6.2f} s] {text}")
     print()
     fall_report(rec)
+    print()
+    artifact_report(rec)
     print()
     lean_report(rec)
     print()
