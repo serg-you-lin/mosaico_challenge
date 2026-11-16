@@ -86,6 +86,31 @@ during walking, and it is also left open.
   direction: the roll correlates with the centripetal acceleration v·ω with
   r = −0.47 over 2025 turning samples. With ROS axes, negative means the
   robot leans **into** the turn. The slope is about −5° per m/s².
+- **Maybe it jumped.** Another option for the rise-and-drop is that the robot
+  made a small jump.
+  - *Fact check — not supported by the load cells.* A jump needs the legs
+    to push harder than the body weight (~330 N) during take-off. While
+    the body is rising and the IMU reads 11–12 m/s² (net upward push
+    larger than gravity), the total foot load is lower than the weight,
+    not higher: mean 121 N (max 184 N) in 41.80–41.88 s and 3 N (max 44 N)
+    in 41.88–42.00 s. In 41.70–41.80 s it is around the weight (mean
+    314 N, max 461 N), with no take-off peak. The push that lifts the body
+    does not come from the feet. A jump would fit only if the load cells
+    were wrong at that moment, while they read about the full weight over
+    the rest of the run.
+- **The fall may go unseen because only one frame covers it.** Watching the
+  video, nothing seems to happen at 42 s. The likely reason is that the
+  camera catches a single frame of the flight.
+  - *Fact check — confirmed.* Camera timestamps around the event are
+    41.912, **42.036**, 42.160, 42.284 s: exactly one frame (42.036 s) falls
+    inside the 0.124 s window. Measuring the change between consecutive
+    frames (mean absolute grey-level difference), the frames around the
+    take-off and the flight change by 22–23, the 64th–65th percentile of
+    the whole run. At the landing (42.160 → 42.284 → 42.408 s) the change
+    goes up to 33–34, the 89th–90th percentile, with a vertical image
+    shift of 8–11 px. That is a visible jolt, but within the range of
+    normal walking (95th percentile: 37). So the event is in the video,
+    but at 8 fps it looks like an ordinary step.
 
 ## Proposed follow-up exercise
 
