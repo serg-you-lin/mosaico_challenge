@@ -188,6 +188,15 @@ during walking, and it is also left open.
     lifting and releasing the robot (see above). The data cannot tell
     these apart.
 
+- **The recording is dated the day after the deadline.** The timestamps
+  put the run on 2026-11-20 (fall at 13:37:42 UTC), while the challenge
+  deadline is 2026-11-19 and the text speaks of "last night". Maybe the
+  date is when the organisers pick the winners.
+  - *Fact check — date confirmed, reason open.* `1795181862000000000` ns
+    is 2026-11-20T13:37:42Z, one day after the deadline. Nothing in the
+    data says why that day was chosen; 13:37 ("leet") may be another
+    easter egg, but that is a guess too.
+
 ## Closing note
 
 The whole recording is a Hitchhiker's Guide to the Galaxy reference: the
