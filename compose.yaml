@@ -1,0 +1,25 @@
+# From https://docs.mosaico.dev/getting_started, plus a healthcheck so that
+# mosaicod starts only once Postgres accepts connections.
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 2s
+      retries: 30
+  mosaicod:
+    image: ghcr.io/mosaico-labs/mosaicod:latest
+    environment:
+      MOSAICOD_DB_URL: postgresql://db:5432/postgres
+      MOSAICOD_DB_USER: postgres
+      MOSAICOD_STORE_ENDPOINT: file:///tmp
+      MOSAICOD_STORE_BUCKET: mosaico
+    command: server --host 0.0.0.0
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: on-failure
+    ports:
+      - "6726:6726"
