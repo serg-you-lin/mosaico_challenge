@@ -20,7 +20,7 @@
   `_debug/2026-11-16_mosaico_challenge_form/`.
 
 ## Next
-- [ ] Submit via the form (same email as Luma) before 2026-11-19.
+- [x] Submit via the form (same email as Luma) before 2026-11-19 — sent 2026-11-16.
 - [ ] After the deadline: decide whether to make the repo public.
 - [ ] Open question: what lifts the body before 42.0 s (not a jump, not a
       turn aid; log mentions a gantry with 70 % gravity compensation).
