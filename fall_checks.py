@@ -32,7 +32,7 @@ FALL_S = (42.0, 42.124)
 class Recording:
     t0_ns:      int
     imu:        np.ndarray                    # t, acc_z
-    odom:       np.ndarray                    # t, x, y, z, v_x, omega_z, roll
+    odom:       np.ndarray                    # t, x, y, z, v_x, omega_z, roll, yaw
     feet:       dict[str, np.ndarray] = field(default_factory=dict)  # t, F_z
     status:     list[tuple[float, str]] = field(default_factory=list)
 
@@ -53,7 +53,7 @@ def load(mcap_path: Path = MCAP_PATH) -> Recording:
                 imu.append((t, m.linear_acceleration.z))
             elif ch.topic == "/robot/odom":
                 p, q, v = m.pose.pose.position, m.pose.pose.orientation, m.twist.twist
-                odom.append((t, p.x, p.y, p.z, v.linear.x, v.angular.z, _roll(q)))
+                odom.append((t, p.x, p.y, p.z, v.linear.x, v.angular.z, _roll(q), _yaw(q)))
             elif ch.topic.startswith("/contact/"):
                 feet.setdefault(ch.topic.rsplit("/", 1)[-1], []).append((t, m.wrench.force.z))
             elif ch.topic == "/robot/status":
@@ -108,6 +108,26 @@ def lean_report(rec: Recording, min_omega: float = 0.05) -> None:
     print("  negative -> leans INTO the turn" if corr < 0 else "  positive -> leans OUT of the turn")
 
 
+def turn_report(rec: Recording, window_s: float = 0.6, min_turn_deg: float = 150.0) -> None:
+    """Direzione del corpo attorno alla caduta e inversioni di marcia su tutto il percorso."""
+    o = rec.odom
+    for t in (41.5, 41.9, 42.0, 42.124, 42.5, 43.1):
+        k = np.argmin(np.abs(o[:, 0] - t))
+        print(f"  t={o[k, 0]:6.2f} s  pos=({o[k, 1]:.2f}, {o[k, 2]:.2f})  "
+              f"yaw={math.degrees(o[k, 7]):6.1f} deg  v={o[k, 4]:.2f} m/s")
+    # Inversione = direzione del moto nei window_s prima e dopo che differisce di > min_turn_deg
+    print(f"Reversals of the direction of motion (> {min_turn_deg:.0f} deg):")
+    last = -10.0
+    for t in np.arange(window_s + 0.1, o[-1, 0] - window_s, 0.04):
+        a, da = _motion_dir(o, t - window_s, t)
+        b, db = _motion_dir(o, t, t + window_s)
+        turn = abs((math.degrees(b - a) + 180) % 360 - 180)
+        if turn > min_turn_deg and min(da, db) > 0.1 and t - last > 1.0:
+            k = np.argmin(np.abs(o[:, 0] - t))
+            print(f"  t={t:6.2f} s  pos=({o[k, 1]:.2f}, {o[k, 2]:.2f})  turn={turn:.0f} deg")
+            last = t
+
+
 def plots(rec: Recording) -> None:
     """Salva media/path.png e media/fall_42s.png."""
     MEDIA.mkdir(exist_ok=True)
@@ -146,6 +166,18 @@ def _roll(q) -> float:
     return math.atan2(2 * (q.w * q.x + q.y * q.z), 1 - 2 * (q.x * q.x + q.y * q.y))
 
 
+def _yaw(q) -> float:
+    """Yaw in radianti da un quaternione ROS."""
+    return math.atan2(2 * (q.w * q.z + q.x * q.y), 1 - 2 * (q.y * q.y + q.z * q.z))
+
+
+def _motion_dir(o: np.ndarray, lo: float, hi: float) -> tuple[float, float]:
+    """Direzione (rad) e lunghezza (m) dello spostamento x-y in [lo, hi)."""
+    w = _between(o, lo, hi)
+    dx, dy = w[-1, 1] - w[0, 1], w[-1, 2] - w[0, 2]
+    return math.atan2(dy, dx), math.hypot(dx, dy)
+
+
 def _between(a: np.ndarray, lo: float, hi: float) -> np.ndarray:
     """Righe con tempo (colonna 0) in [lo, hi)."""
     return a[(a[:, 0] >= lo) & (a[:, 0] < hi)]
@@ -159,6 +191,8 @@ def main() -> None:
     fall_report(rec)
     print()
     lean_report(rec)
+    print()
+    turn_report(rec)
     plots(rec)
     print(f"\nPlots saved in {MEDIA}")
 

@@ -80,8 +80,11 @@ during walking, and it is also left open.
   data says gravity was normal during the flight (fit g = 9.79 m/s²) and the
   three sensors agree, which points to a real lift-and-drop rather than to
   either of those.
-- **Leaning into turns.** The robot keeps walking around the yard without
-  an apparent goal, and when it turns it leans slightly toward the inside,
+- **The path is not random.** From the front camera the robot seems to
+  wander around the yard without a goal. Seen from above it does not: the
+  path spells **MOSAICO** (`media/path.png`), letter by letter, from the M
+  at x ≈ −1 m to the final O at x ≈ 13 m.
+- **Leaning into turns.** When it turns it leans slightly toward the inside,
   like an F1 driver's head against lateral g. The data confirms the
   direction: the roll correlates with the centripetal acceleration v·ω with
   r = −0.47 over 2025 turning samples. With ROS axes, negative means the
@@ -111,6 +114,24 @@ during walking, and it is also left open.
     shift of 8–11 px. That is a visible jolt, but within the range of
     normal walking (95th percentile: 37). So the event is in the video,
     but at 8 fps it looks like an ordinary step.
+- **Maybe a lift to turn 180° at the top of the A.** The external lift
+  could be an artifact of the simulation to turn the robot around at the
+  tip of the A, the sharpest point of the path, where the robot may not be
+  able to reverse in so little space without help.
+  - *Fact check — not supported.* (1) At the moment of the lift the robot
+    is not turning: from 41.9 to 43.1 s it walks straight up the left leg
+    of the A, heading steady at 69–73°, speed ~0.85 m/s; the previous turn
+    at the bottom of the leg is already over. (2) The turn at the tip of
+    the A (~145°, at (6.31, 3.79) m) happens at 43.3–44.5 s, more than a
+    second after the landing: the robot slows down, steps backwards
+    (v ≈ −0.35 m/s) and rotates on its own. (3) It is not the only sharp
+    reversal: the path has six more where the direction of motion turns
+    by 150–178° (top of the S at 33.2 s; bottom of the A's right leg at
+    46.0 s; the A's crossbar at 48.3 s; the bar of the I at 55.3 and
+    56.3 s; top of the C at 65.3 s). The Mosaico query finds a single
+    free-fall window in the whole run, so all of those were done without
+    a lift. The data shows the lift is not tied to a turn; its purpose
+    stays unknown.
 
 ## Proposed follow-up exercise
 
