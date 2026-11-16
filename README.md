@@ -9,3 +9,7 @@ Opening the Codespace installs the `mosaicolabs` SDK and starts `mosaicod`
 docker compose ps                     # mosaicod up on :6726
 mosaicolabs.ros_injector spot_yb42.mcap --name spot_yb42 --metadata sequence_metadata.json
 ```
+
+Results and observations: **`FINDINGS.md`**. Other scripts:
+`camera_to_mp4.py` (front camera to MP4) and `fall_checks.py` (sensor checks
+around the fall, plots in `media/`).
