@@ -9,6 +9,12 @@
 - Decision: run everything in **GitHub Codespaces** (120 core-h/month free,
   resets monthly; blocked, not billed, without a payment method).
 
+## Result (2026-11-16, Codespace, universal:2 image)
+- Query: `QueryOntologyCatalog(IMU.Q.acceleration.z.between([-1.0, 1.0]))`
+- One window on `/imu/body`: 1795181862000000000 → 1795181862124000000 ns
+  (0.124 s, 42.000 s after recording start, 2026-11-20T13:37:42Z).
+- Open: check the start does not move with threshold 2.0; then submit.
+
 ## Next
 - [ ] Create a private GitHub repo with CHALLENGE.md, mcap, metadata.
 - [ ] Add `.devcontainer/` (Python + docker-in-docker) and the compose file
