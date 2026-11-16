@@ -13,7 +13,8 @@ with MosaicoClient.connect("localhost", 6726) as client:
     for item in results:
         print(f"Sequence: {item.sequence.name}")
         for topic in item.topics:
-            print(f"  Topic: {topic.name}  timestamp_range: {topic.timestamp_range}")
+            # I campi della risposta cambiano tra versioni dell'SDK: li stampo tutti
+            print(f"  Topic: {topic.name}  fields: {vars(topic)}")
             for cluster in topic.clusterize():
                 start, end = cluster.timerange.start, cluster.timerange.end
                 print(f"    window start={start} ns  end={end} ns  "
